@@ -76,10 +76,33 @@ fi
 echo "==> Aktiverer layoutet for den aktuelle bruger..."
 SUDO_USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
 if [ -n "$SUDO_USER" ] && [ -n "$SUDO_USER_HOME" ]; then
-    sudo -u "$SUDO_USER" gsettings set org.gnome.desktop.input-sources sources "[('xkb', 'dk+swerty')]"
-    echo "    Layout aktiveret for bruger: $SUDO_USER"
+    # Find brugerens aktive D-Bus session
+    DBUS_ADDR=$(sudo -u "$SUDO_USER" bash -c '
+        for pid in $(pgrep -u "$USER" gnome-session dbus-daemon 2>/dev/null); do
+            addr=$(cat /proc/$pid/environ 2>/dev/null | tr "\0" "\n" | grep DBUS_SESSION_BUS_ADDRESS | cut -d= -f2-)
+            if [ -n "$addr" ]; then echo "$addr"; break; fi
+        done
+    ')
+    if [ -n "$DBUS_ADDR" ]; then
+        sudo -u "$SUDO_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_ADDR" \
+            gsettings set org.gnome.desktop.input-sources sources "[('xkb', 'dk+swerty')]"
+        echo "    Layout aktiveret for bruger: $SUDO_USER"
+    else
+        # Ingen aktiv session — skriv direkte til dconf-filen
+        DCONF_DIR="$SUDO_USER_HOME/.config/dconf"
+        mkdir -p "$DCONF_DIR"
+        sudo -u "$SUDO_USER" dbus-launch gsettings set org.gnome.desktop.input-sources sources "[('xkb', 'dk+swerty')]" 2>/dev/null || \
+        python3 -c "
+import subprocess, os
+db = '$DCONF_DIR/user'
+subprocess.run(['dconf', 'load', '/org/gnome/desktop/input-sources/'],
+    input=b\"[/]\\nsources=[('xkb', 'dk+swerty')]\\n\",
+    env={**os.environ, 'HOME': '$SUDO_USER_HOME', 'USER': '$SUDO_USER'})
+" 2>/dev/null || true
+        echo "    Layout sat for bruger: $SUDO_USER (træder i kraft ved næste login)"
+    fi
 else
-    echo "    Kunne ikke bestemme bruger. Kør manuelt:"
+    echo "    Kunne ikke bestemme bruger. Kør manuelt efter login:"
     echo "    gsettings set org.gnome.desktop.input-sources sources \"[('xkb', 'dk+swerty')]\""
 fi
 
