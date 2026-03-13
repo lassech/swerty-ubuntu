@@ -27,6 +27,15 @@ echo "==> Kopierer layoutfil..."
 cp "$SYMBOLS_FILE" "$XKB_SYMBOLS"
 echo "    $XKB_SYMBOLS oprettet."
 
+echo "==> Tilføjer swerty-variant til dk-symbols filen..."
+DK_SYMBOLS="/usr/share/X11/xkb/symbols/dk"
+if grep -q "swerty" "$DK_SYMBOLS"; then
+    echo "    swerty allerede i $DK_SYMBOLS, springer over."
+else
+    cat "$SYMBOLS_FILE" >> "$DK_SYMBOLS"
+    echo "    swerty tilføjet til $DK_SYMBOLS."
+fi
+
 echo "==> Opdaterer evdev.lst..."
 if grep -q "swerty" "$XKB_LST"; then
     echo "    swerty allerede registreret i evdev.lst, springer over."
