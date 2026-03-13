@@ -86,12 +86,15 @@ if [ -n "$SUDO_USER" ] && [ -n "$SUDO_USER_HOME" ]; then
     if [ -n "$DBUS_ADDR" ]; then
         sudo -u "$SUDO_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_ADDR" \
             gsettings set org.gnome.desktop.input-sources sources "[('xkb', 'dk+swerty')]"
+        sudo -u "$SUDO_USER" DBUS_SESSION_BUS_ADDRESS="$DBUS_ADDR" \
+            gsettings set org.gnome.desktop.input-sources xkb-options "['lv3:ralt_switch']"
         echo "    Layout aktiveret for bruger: $SUDO_USER"
     else
         # Ingen aktiv session — skriv direkte til dconf-filen
         DCONF_DIR="$SUDO_USER_HOME/.config/dconf"
         mkdir -p "$DCONF_DIR"
-        sudo -u "$SUDO_USER" dbus-launch gsettings set org.gnome.desktop.input-sources sources "[('xkb', 'dk+swerty')]" 2>/dev/null || \
+        sudo -u "$SUDO_USER" dbus-launch gsettings set org.gnome.desktop.input-sources sources "[('xkb', 'dk+swerty')]" 2>/dev/null
+        sudo -u "$SUDO_USER" dbus-launch gsettings set org.gnome.desktop.input-sources xkb-options "['lv3:ralt_switch']" 2>/dev/null || \
         python3 -c "
 import subprocess, os
 db = '$DCONF_DIR/user'
@@ -113,7 +116,7 @@ cat > /etc/default/keyboard <<EOF
 XKBMODEL="pc105"
 XKBLAYOUT="dk"
 XKBVARIANT="swerty"
-XKBOPTIONS=""
+XKBOPTIONS="lv3:ralt_switch"
 BACKSPACE="guess"
 EOF
 dpkg-reconfigure -f noninteractive keyboard-configuration 2>/dev/null || true
@@ -128,6 +131,7 @@ mkdir -p "$GDM_DCONF_DB"
 cat > "$GDM_DCONF_DB/00-keyboard" <<EOF
 [org/gnome/desktop/input-sources]
 sources=[('xkb', 'dk+swerty')]
+xkb-options=['lv3:ralt_switch']
 EOF
 
 # Sørg for at gdm-profilen peger på databasen
